@@ -3,8 +3,8 @@ import time
 from datetime import datetime
 from diffusers import ZImagePipeline, ZImageTransformer2DModel, GGUFQuantizationConfig
 
-local_gguf_path = "/users/mk/workspace/models/model/z-image-turbo-Q4_K_S.gguf"
-image_output_path = "/users/mk/workspace/models/output/zimage.png"
+local_gguf_path = "/Users/mk/workspace/ai/models/model/z-image-turbo-Q4_K_S.gguf"
+image_output_path = "/Users/mk/workspace/ai/models/output/zimage.png"
 
 # Record start time
 start_time = time.time()
@@ -39,13 +39,22 @@ pipe = pipe.to(device)
 # pipe.enable_model_cpu_offload() # Use if you run out of memory
 
 # --- Your Prompt ---
-prompt = """
-Young Chinese woman in red Hanfu, intricate embroidery. Impeccable makeup, 
-red floral forehead pattern. Elaborate high bun, golden phoenix headdress, red flowers, 
-beads. Holds round folding fan with lady, trees, bird. Neon lightning-bolt lamp (⚡️), 
-bright yellow glow, above extended left palm. Soft-lit outdoor night background, 
-silhouetted tiered pagoda (西安大雁塔), blurred colorful distant lights.
+key_word = "appreciate"
+category = f"""
+Generate Teen Drama comic strip without words except - {key_word}.
 """
+style = """
+Select style - Comedy/Mystery/Sci-Fi/Teen Drama/Mythic Western/Classic Cartooning/
+wasteland
+based on sentense.
+"""
+sentense = """
+  Panel 1: A confident girl standing in her room, holding a math competition flyer, smiling with a determined look.
+  Panel 2: The same girl at a desk, surrounded by open math books and scattered papers, brow furrowed in concentration.
+  Panel 3: A frustrated expression on her face, erasing mistakes on a whiteboard filled with complex equations, surrounded by more books.
+  Panel 4: The girl rubbing her temples, looking tired and overwhelmed, with a pile of unsolved problems in front of her.
+"""
+prompt = category + sentense
 
 # --- Generate the image ---
 # The settings like num_inference_steps and guidance_scale are specific to Turbo models
