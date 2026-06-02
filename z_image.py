@@ -41,24 +41,17 @@ def load_pipeline(device="mps", gguf_path=None):
     return pipe
 
 
-def generate_image(pipe, prompt_text, output_path, word="", device="mps", seed=42, with_word=True):
+def generate_image(pipe, prompt_text, output_path, device="mps", seed=42):
     """Generate an image from a prompt and save to output_path.
 
     Args:
         pipe: loaded ZImagePipeline
         prompt_text: the detailed image description (from gen_prompt)
         output_path: where to save the PNG
-        word: optional word for the category prefix
         device: torch device
         seed: random seed for reproducibility
-        with_word: if True, category says "with the word {word}";
-                   if False, says "without any words"
     """
-    if with_word:
-        category = f"Generate an image with the word {word}.\n" if word else ""
-    else:
-        category = "Generate an image without any words.\n"
-
+    category = "Generate an image without any words.\n"
     full_prompt = category + prompt_text
 
     image = pipe(
@@ -122,7 +115,7 @@ def main():
     log.info("Prompt: %s...", prompt_text[:120])
 
     pipe = load_pipeline(args.device)
-    generate_image(pipe, prompt_text, args.output, word, args.device, args.seed)
+    generate_image(pipe, prompt_text, args.output, args.device, args.seed)
     log.info("Image saved to: %s", args.output)
 
     end_time = time.time()

@@ -13,9 +13,9 @@ PROJECT_DIR = Path(__file__).resolve().parent
 PROMPT_OUTPUT = PROJECT_DIR / "gen_prompt_output.txt"
 
 SYSTEM_PROMPT = """
-Generate a prompt which used in text-to-image, to create an image to well describe the word.
-Because abstract word maybe not easy to describe in a single scene, you can use multiple scenes
-in one image in case it needs.
+Generate a text-to-image prompt that visually conveys the meaning of a word through a purely
+visual scene. The image must NOT contain any text, letters, words, or typography. Use multiple
+scenes in one image if needed to illustrate abstract concepts.
 """
 
 SYSTEM_PROMPT_DUAL = """You are a text-to-image prompt generator. Given a word and its meaning, generate TWO prompts:
