@@ -61,6 +61,8 @@ def _call_api(client, model, system_prompt, user_prompt):
             if output_text is None:
                 raise RuntimeError("API returned empty content")
 
+            log.info("API call OK — %d tokens", tokens_used)
+            log.debug("Response: %s", output_text.strip()[:200])
             return output_text.strip(), tokens_used
 
         except Exception as e:
@@ -80,8 +82,11 @@ def generate_prompt(word, meaning, client=None, model=None):
     """
     if client is None or model is None:
         client, model = _get_client()
+    log.info("Word: %s | Meaning: %s", word, meaning)
     user_prompt = f"The word is '{word}', meaning is '{meaning}'."
-    return _call_api(client, model, SYSTEM_PROMPT, user_prompt)
+    prompt_text, tokens = _call_api(client, model, SYSTEM_PROMPT, user_prompt)
+    log.info("Prompt: %s...", prompt_text[:120])
+    return prompt_text, tokens
 
 
 def generate_prompts(word, meaning, client=None, model=None):
@@ -91,6 +96,7 @@ def generate_prompts(word, meaning, client=None, model=None):
     """
     if client is None or model is None:
         client, model = _get_client()
+    log.info("Word: %s | Meaning: %s", word, meaning)
     user_prompt = f"The word is '{word}', meaning is '{meaning}'."
     output_text, tokens = _call_api(client, model, SYSTEM_PROMPT_DUAL, user_prompt)
 
@@ -107,6 +113,8 @@ def generate_prompts(word, meaning, client=None, model=None):
     if not no_word:
         no_word = with_word
 
+    log.info("[with word] %s...", with_word[:120])
+    log.info("[no word]  %s...", no_word[:120])
     return with_word, no_word, tokens
 
 

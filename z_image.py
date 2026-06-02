@@ -54,6 +54,7 @@ def generate_image(pipe, prompt_text, output_path, device="mps", seed=42):
     category = "Generate an image without any words.\n"
     full_prompt = category + prompt_text
 
+    log.info("Generating image (seed=%d, %s)...", seed, output_path)
     image = pipe(
         prompt=full_prompt,
         height=1024,
@@ -65,6 +66,7 @@ def generate_image(pipe, prompt_text, output_path, device="mps", seed=42):
 
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     image.save(output_path)
+    log.info("Image saved: %s", output_path)
     return output_path
 
 
