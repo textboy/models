@@ -9,7 +9,7 @@ PROJECT_DIR = Path(__file__).resolve().parent
 PROMPT_INPUT = PROJECT_DIR / "gen_prompt_output.txt"
 
 local_gguf_path = "/Users/mk/workspace/ai/models/model/z-image-turbo-Q4_K_S.gguf"
-image_output_path = "/Users/mk/workspace/ai/models/output/zimage.png"
+image_output_path = "/Users/mk/workspace/ai/models/img/zimage.png"
 
 # Record start time
 start_time = time.time()
@@ -60,7 +60,7 @@ if not word or not sentense:
 print(f"Word: {word}")
 print(f"Prompt: {sentense[:120]}...")
 
-category = f"Generate an image with words {word}.\n"
+category = f"Generate an image without words {word}.\n"
 prompt = category + sentense
 
 # --- Generate the image ---

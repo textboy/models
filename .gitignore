@@ -1,5 +1,6 @@
 *.gguf
 /model
-/output
+/img
 .DS_Store
 gen_prompt_output.txt
+/pool

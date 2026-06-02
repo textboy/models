@@ -64,8 +64,8 @@ run_zimage() {
   bold "═══ Running Z-Image-Turbo sample ═══"
   cd "$PROJECT_DIR"
   python "$PROJECT_DIR/z-image.py"
-  if [[ -f "$PROJECT_DIR/output/zimage.png" ]]; then
-    open "$PROJECT_DIR/output/zimage.png"
+  if [[ -f "$PROJECT_DIR/img/zimage.png" ]]; then
+    open "$PROJECT_DIR/img/zimage.png"
   fi
 }
 
