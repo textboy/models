@@ -16,19 +16,18 @@ start_datetime = datetime.now()
 print(f"Start time: {start_datetime.strftime('%Y-%m-%d %H:%M:%S')}")
 
 system_prompt = """
-You are a creative comic strip writer. Given a story sentence, output exactly 4 text prompts,
-one per panel of a 4-panel comic strip. Each prompt should describe the visual scene for that
-panel — characters, setting, emotion, and action. Keep each prompt concise (1-2 sentences).
-Output ONLY the 4 prompts, each on its own line prefixed with "Panel N: ".
+Generate a prompt which used in text-to-image, to create an image to well describe the word.
+Because abstract word maybe not easy to describe in a single scene, you can use multiple scenes
+in one image in case it needs.
 """
-
-user_prompt = """
-Based on below sentence, setup 4 text for comic strip.
-"She didn't appreciate how difficult the math competition would be until she started preparing."
+word = "appreciate"
+meaning = "thankful"
+user_prompt = f"""
+The word is '{word}', meaning is '{meaning}'.
 """
 
 print(f"Model: {model}")
-print("Generating comic strip prompts...")
+print("Generating prompts...")
 
 response = client.chat.completions.create(
     model=model,

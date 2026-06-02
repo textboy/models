@@ -39,20 +39,18 @@ pipe = pipe.to(device)
 # pipe.enable_model_cpu_offload() # Use if you run out of memory
 
 # --- Your Prompt ---
-key_word = "appreciate"
+word = "appreciate"
 category = f"""
-Generate Teen Drama comic strip without words except - {key_word}.
-"""
-style = """
-Select style - Comedy/Mystery/Sci-Fi/Teen Drama/Mythic Western/Classic Cartooning/
-wasteland
-based on sentense.
+Generate an image with words {word}.
 """
 sentense = """
-  Panel 1: A confident girl standing in her room, holding a math competition flyer, smiling with a determined look.
-  Panel 2: The same girl at a desk, surrounded by open math books and scattered papers, brow furrowed in concentration.
-  Panel 3: A frustrated expression on her face, erasing mistakes on a whiteboard filled with complex equations, surrounded by more books.
-  Panel 4: The girl rubbing her temples, looking tired and overwhelmed, with a pile of unsolved problems in front of her.
+A split-panel conceptual artwork illustrating the word "appreciate" (thankful). 
+
+**Top panel:** A close-up of a person's hands gently holding a simple, glowing golden cup with warm light radiating from inside, symbolizing the recognition of value and being thankful for what one has. 
+
+**Bottom panel:** A beautiful, sunlit garden scene where a person is gently watering a small, vibrant sapling, and from the spot where the water touches the soil, luminous, floating golden flowers are blooming and rising into the air, symbolizing how appreciation nurtures and gives back. 
+
+The overall mood is warm, serene, and heartfelt. Rich color palette of warm golds, soft ambers, and lush emerald greens. Cinematic lighting, soft glowing aura, highly detailed, magical realism, emotional depth, 8k resolution, masterpiece.
 """
 prompt = category + sentense
 
