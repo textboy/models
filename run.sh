@@ -6,12 +6,14 @@ set -euo pipefail
 # ─────────────────────────────────────────
 #
 # Usage:
-#   ./run.sh                # run the Z-Image-Turbo sample (default)
-#   ./run.sh zimage         # same
-#   ./run.sh gen-prompt     # run the prompt generation sample
-#   ./run.sh all            # run both samples
+#   ./run.sh                    # run the Z-Image-Turbo sample (default)
+#   ./run.sh zimage             # same
+#   ./run.sh gen-prompt         # run the prompt generation sample
+#   ./run.sh all                # run both samples (gen-prompt → zimage)
+#   ./run.sh 0001               # batch process 0001.json only
+#   ./run.sh 0001 0011          # batch process 0001.json → 0011.json
 #
-# Environment variables (for gen-prompt.py):
+# Environment variables (for gen_prompt.py / batch.py):
 #   NVIDIA_BASE_URL    – NVIDIA API base URL
 #   NVIDIA_API_KEY     – NVIDIA API key
 #   NVIDIA_MODEL       – NVIDIA model name
@@ -59,19 +61,8 @@ install_deps() {
   green "✓ All dependencies available"
 }
 
-# --- run z-image sample --------------------------------------
-run_zimage() {
-  bold "═══ Running Z-Image-Turbo sample ═══"
-  cd "$PROJECT_DIR"
-  python "$PROJECT_DIR/z-image.py"
-  if [[ -f "$PROJECT_DIR/img/zimage.png" ]]; then
-    open "$PROJECT_DIR/img/zimage.png"
-  fi
-}
-
-# --- run gen-prompt sample -----------------------------------
-run_gen_prompt() {
-  bold "═══ Running Prompt Generation sample ═══"
+# --- check NVIDIA env vars -----------------------------------
+check_nvidia_env() {
   local missing_vars=()
   for var in NVIDIA_BASE_URL NVIDIA_API_KEY NVIDIA_MODEL; do
     if [[ -z "${!var:-}" ]]; then
@@ -86,31 +77,62 @@ run_gen_prompt() {
     red "  export NVIDIA_MODEL=nvidia/llama-3.1-nemotron-70b-instruct"
     exit 1
   fi
+}
+
+# --- run z-image sample --------------------------------------
+run_zimage() {
+  bold "═══ Running Z-Image-Turbo sample ═══"
   cd "$PROJECT_DIR"
-  python "$PROJECT_DIR/gen-prompt.py"
+  python "$PROJECT_DIR/z_image.py"
+  if [[ -f "$PROJECT_DIR/img/zimage.png" ]]; then
+    open "$PROJECT_DIR/img/zimage.png"
+  fi
+}
+
+# --- run gen-prompt sample -----------------------------------
+run_gen_prompt() {
+  bold "═══ Running Prompt Generation sample ═══"
+  check_nvidia_env
+  cd "$PROJECT_DIR"
+  python "$PROJECT_DIR/gen_prompt.py" --word "appreciate" --meaning "thankful"
+}
+
+# --- run batch -----------------------------------------------
+run_batch() {
+  local start="${1:-0001}"
+  local end="${2:-$start}"
+  bold "═══ Batch processing: $start.json → $end.json ═══"
+  check_nvidia_env
+  cd "$PROJECT_DIR"
+  python "$PROJECT_DIR/batch.py" "$start" "$end"
 }
 
 # --- main ----------------------------------------------------
 activate_env
 install_deps
 
-case "$SAMPLE" in
-  zimage)
-    run_zimage
-    ;;
-  gen-prompt)
-    run_gen_prompt
-    ;;
-  all)
-    run_gen_prompt
-    echo
-    run_zimage
-    ;;
-  *)
-    red "Unknown sample: '$SAMPLE'"
-    echo "Usage: ./run.sh [zimage|gen-prompt|all]"
-    exit 1
-    ;;
-esac
+# Detect if first argument is a 4-digit number → batch mode
+if [[ "$SAMPLE" =~ ^[0-9]{4}$ ]]; then
+  run_batch "$SAMPLE" "${2:-$SAMPLE}"
+else
+  case "$SAMPLE" in
+    zimage)
+      run_zimage
+      ;;
+    gen-prompt)
+      run_gen_prompt
+      ;;
+    all)
+      run_gen_prompt
+      echo
+      run_zimage
+      ;;
+    *)
+      red "Unknown sample: '$SAMPLE'"
+      echo "Usage: ./run.sh [zimage|gen-prompt|all|NNNN [NNNN]]"
+      exit 1
+      ;;
+  esac
+fi
 
 green "✓ Done."

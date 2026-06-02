@@ -4,3 +4,4 @@
 .DS_Store
 gen_prompt_output.txt
 /pool
+__pycache__/
