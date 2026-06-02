@@ -14,6 +14,9 @@ Because abstract word maybe not easy to describe in a single scene, you can use 
 in one image in case it needs.
 """
 
+MAX_RETRIES = 5
+RETRY_DELAY_BASE = 2  # seconds
+
 
 def _get_client():
     base_url = os.environ["NVIDIA_BASE_URL"]
@@ -24,27 +27,43 @@ def _get_client():
 def generate_prompt(word, meaning, client=None, model=None):
     """Generate a text-to-image prompt for the given word and meaning.
 
-    Returns the generated prompt string.
+    Returns (prompt_text, tokens_used). Retries with exponential backoff
+    on transient API errors.
     """
     if client is None or model is None:
         client, model = _get_client()
 
     user_prompt = f"The word is '{word}', meaning is '{meaning}'."
 
-    response = client.chat.completions.create(
-        model=model,
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": user_prompt},
-        ],
-        temperature=0.7,
-        max_tokens=512,
-    )
+    last_error = None
+    for attempt in range(MAX_RETRIES):
+        try:
+            response = client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": user_prompt},
+                ],
+                temperature=0.7,
+                max_tokens=512,
+            )
 
-    output_text = response.choices[0].message.content
-    tokens_used = response.usage.total_tokens
+            output_text = response.choices[0].message.content
+            tokens_used = response.usage.total_tokens
 
-    return output_text.strip(), tokens_used
+            if output_text is None:
+                raise RuntimeError("API returned empty content")
+
+            return output_text.strip(), tokens_used
+
+        except Exception as e:
+            last_error = e
+            if attempt < MAX_RETRIES - 1:
+                delay = RETRY_DELAY_BASE * (2 ** attempt)
+                print(f"      Retry {attempt + 1}/{MAX_RETRIES} in {delay}s: {e}")
+                time.sleep(delay)
+
+    raise RuntimeError(f"Failed after {MAX_RETRIES} attempts: {last_error}")
 
 
 def main():

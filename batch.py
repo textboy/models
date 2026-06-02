@@ -80,7 +80,7 @@ def process_batch(start, end, device="mps"):
                 print(f"  [{word_text}] {meanings[:80]}...")
 
                 try:
-                    # Step 1: Generate prompt via LLM
+                    # Step 1: Generate prompt via LLM (with retry built in)
                     prompt_text, tokens = gen_prompt.generate_prompt(
                         word_text, meanings, client, model
                     )
@@ -92,6 +92,9 @@ def process_batch(start, end, device="mps"):
                     )
                     print(f"    ✓ Saved: {output_filename}")
                     total_images += 1
+
+                    # Brief pause to avoid rate-limiting the API
+                    time.sleep(1)
 
                 except Exception as e:
                     print(f"    ✗ ERROR: {e}")
