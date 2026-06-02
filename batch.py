@@ -12,6 +12,9 @@ import time
 from datetime import datetime
 from pathlib import Path
 
+from log_utils import setup_logger
+
+log = setup_logger("batch")
 import gen_prompt
 import z_image
 
@@ -24,7 +27,7 @@ def load_json(file_number):
     """Load a vocabulary JSON file by its number string (e.g., '0001')."""
     path = VOCAB_DIR / f"{file_number}.json"
     if not path.exists():
-        print(f"WARNING: {path} not found, skipping.")
+        log.warning("%s not found, skipping.", path)
         return None
     with open(path) as f:
         return json.load(f)
@@ -33,16 +36,16 @@ def load_json(file_number):
 def process_batch(start, end, device="mps"):
     """Process vocabulary files from start to end (inclusive)."""
     start_time = time.time()
-    print(f"Batch started at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    print(f"Range: {start}.json → {end}.json")
-    print(f"Device: {device}")
+    log.info("Batch started at: %s", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+    log.info("Range: %s.json → %s.json", start, end)
+    log.info("Device: %s", device)
 
     # Load model once
     pipe = z_image.load_pipeline(device)
 
     # Create LLM client once
     client, model = gen_prompt._get_client()
-    print(f"LLM Model: {model}")
+    log.info("LLM Model: %s", model)
 
     total_words = 0
     total_images = 0
@@ -55,9 +58,10 @@ def process_batch(start, end, device="mps"):
         if data is None:
             continue
 
-        print(f"\n{'='*60}")
-        print(f"Processing: {file_number}.json  ({len(data)} words)")
-        print(f"{'='*60}")
+        log.info("")
+        log.info("=" * 60)
+        log.info("Processing: %s.json  (%d words)", file_number, len(data))
+        log.info("=" * 60)
 
         for word_entry in data:
             word_id = word_entry["id"]
@@ -75,19 +79,19 @@ def process_batch(start, end, device="mps"):
 
                 # Skip if both already generated
                 if path_word.exists() and path_no_word.exists():
-                    print(f"  SKIP {output_word} / {output_no_word} (already exist)")
+                    log.info("  SKIP %s / %s (already exist)", output_word, output_no_word)
                     total_skipped += 1
                     continue
 
-                print(f"  [{word_text}] {meanings[:80]}...")
+                log.info("  [%s] %s...", word_text, meanings[:80])
 
                 try:
                     # Step 1: Generate two prompts in one API call
                     prompt_with, prompt_no, tokens = gen_prompt.generate_prompts(
                         word_text, meanings, client, model
                     )
-                    print(f"    [with word]    {prompt_with[:80]}...")
-                    print(f"    [no word]      {prompt_no[:80]}...")
+                    log.info("    [with word]    %s...", prompt_with[:80])
+                    log.info("    [no word]      %s...", prompt_no[:80])
 
                     # Step 2: Generate image with word
                     if not path_word.exists():
@@ -95,10 +99,10 @@ def process_batch(start, end, device="mps"):
                             pipe, prompt_with, str(path_word), word_text, device,
                             with_word=True
                         )
-                        print(f"    ✓ Saved: {output_word}")
+                        log.info("    ✓ Saved: %s", output_word)
                         total_images += 1
                     else:
-                        print(f"    SKIP {output_word} (already exists)")
+                        log.info("    SKIP %s (already exists)", output_word)
 
                     # Step 3: Generate image without word
                     if not path_no_word.exists():
@@ -106,29 +110,30 @@ def process_batch(start, end, device="mps"):
                             pipe, prompt_no, str(path_no_word), word_text, device,
                             with_word=False
                         )
-                        print(f"    ✓ Saved: {output_no_word}")
+                        log.info("    ✓ Saved: %s", output_no_word)
                         total_images += 1
                     else:
-                        print(f"    SKIP {output_no_word} (already exists)")
+                        log.info("    SKIP %s (already exists)", output_no_word)
 
                     # Brief pause to avoid rate-limiting the API
                     time.sleep(1)
 
                 except Exception as e:
-                    print(f"    ✗ ERROR: {e}")
+                    log.error("    ✗ ERROR: %s", e)
                     total_errors += 1
                     continue
 
     # Summary
     elapsed = time.time() - start_time
-    print(f"\n{'='*60}")
-    print(f"Batch complete!")
-    print(f"  Words processed:  {total_words}")
-    print(f"  Images generated: {total_images}")
-    print(f"  Skipped:          {total_skipped}")
-    print(f"  Errors:           {total_errors}")
-    print(f"  Duration:         {elapsed/60:.1f} minutes ({elapsed:.0f}s)")
-    print(f"Finished at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    log.info("")
+    log.info("=" * 60)
+    log.info("Batch complete!")
+    log.info("  Words processed:  %d", total_words)
+    log.info("  Images generated: %d", total_images)
+    log.info("  Skipped:          %d", total_skipped)
+    log.info("  Errors:           %d", total_errors)
+    log.info("  Duration:         %.1f minutes (%.0fs)", elapsed / 60, elapsed)
+    log.info("Finished at: %s", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
 
 def main():
@@ -141,11 +146,11 @@ def main():
 
     # Validate format
     if not start.isdigit() or not end.isdigit() or len(start) != 4 or len(end) != 4:
-        print("ERROR: Arguments must be 4-digit file numbers (e.g., 0001, 0011)")
+        log.error("Arguments must be 4-digit file numbers (e.g., 0001, 0011)")
         sys.exit(1)
 
     if int(end) < int(start):
-        print("ERROR: end must be >= start")
+        log.error("end must be >= start")
         sys.exit(1)
 
     process_batch(start, end)

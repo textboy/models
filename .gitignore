@@ -5,3 +5,4 @@
 gen_prompt_output.txt
 /pool
 __pycache__/
+/logs

@@ -2,9 +2,15 @@ import torch
 import time
 import sys
 import argparse
+import logging
 from datetime import datetime
 from pathlib import Path
 from diffusers import ZImagePipeline, ZImageTransformer2DModel, GGUFQuantizationConfig
+
+from log_utils import setup_logger
+
+# Module-level logger — can be overridden by batch.py to redirect to batch log
+log = setup_logger("z_image")
 
 PROJECT_DIR = Path(__file__).resolve().parent
 PROMPT_INPUT = PROJECT_DIR / "gen_prompt_output.txt"
@@ -17,7 +23,7 @@ def load_pipeline(device="mps", gguf_path=None):
     if gguf_path is None:
         gguf_path = DEFAULT_GGUF
 
-    print("Loading model...")
+    log.info("Loading model...")
     transformer = ZImageTransformer2DModel.from_single_file(
         gguf_path,
         quantization_config=GGUFQuantizationConfig(compute_dtype=torch.bfloat16),
@@ -31,7 +37,7 @@ def load_pipeline(device="mps", gguf_path=None):
     )
 
     pipe = pipe.to(device)
-    print(f"Model loaded on {device}.")
+    log.info("Model loaded on %s.", device)
     return pipe
 
 
@@ -81,7 +87,7 @@ def main():
 
     start_time = time.time()
     start_datetime = datetime.now()
-    print(f"Start time: {start_datetime.strftime('%Y-%m-%d %H:%M:%S')}")
+    log.info("Start time: %s", start_datetime.strftime("%Y-%m-%d %H:%M:%S"))
 
     # Determine prompt source
     if args.prompt:
@@ -90,42 +96,42 @@ def main():
     elif args.prompt_file:
         prompt_path = Path(args.prompt_file)
         if not prompt_path.exists():
-            print(f"ERROR: Prompt file not found: {prompt_path}")
-            print("Run gen_prompt.py first to generate it.")
+            log.error("Prompt file not found: %s", prompt_path)
+            log.error("Run gen_prompt.py first to generate it.")
             sys.exit(1)
         with open(prompt_path) as f:
             word = f.readline().strip()
             prompt_text = f.read().strip()
         if not word or not prompt_text:
-            print(f"ERROR: Prompt file {prompt_path} is empty or malformed.")
+            log.error("Prompt file %s is empty or malformed.", prompt_path)
             sys.exit(1)
     else:
         # Default: read from shared file
         if not PROMPT_INPUT.exists():
-            print(f"ERROR: Prompt file not found: {PROMPT_INPUT}")
-            print("Run gen_prompt.py first to generate it.")
+            log.error("Prompt file not found: %s", PROMPT_INPUT)
+            log.error("Run gen_prompt.py first to generate it.")
             sys.exit(1)
         with open(PROMPT_INPUT) as f:
             word = f.readline().strip()
             prompt_text = f.read().strip()
         if not word or not prompt_text:
-            print(f"ERROR: Prompt file {PROMPT_INPUT} is empty or malformed.")
+            log.error("Prompt file %s is empty or malformed.", PROMPT_INPUT)
             sys.exit(1)
 
-    print(f"Word: {word}")
-    print(f"Prompt: {prompt_text[:120]}...")
+    log.info("Word: %s", word)
+    log.info("Prompt: %s...", prompt_text[:120])
 
     pipe = load_pipeline(args.device)
     generate_image(pipe, prompt_text, args.output, word, args.device, args.seed)
-    print(f"Image saved to: {args.output}")
+    log.info("Image saved to: %s", args.output)
 
     end_time = time.time()
     end_datetime = datetime.now()
     duration_seconds = end_time - start_time
     duration_minutes = duration_seconds / 60.0
 
-    print(f"End time: {end_datetime.strftime('%Y-%m-%d %H:%M:%S')}")
-    print(f"Duration: {duration_minutes:.2f} minutes ({duration_seconds:.1f} seconds)")
+    log.info("End time: %s", end_datetime.strftime("%Y-%m-%d %H:%M:%S"))
+    log.info("Duration: %.2f minutes (%.1f seconds)", duration_minutes, duration_seconds)
 
 
 if __name__ == "__main__":

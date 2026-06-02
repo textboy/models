@@ -5,6 +5,10 @@ from datetime import datetime
 from pathlib import Path
 from openai import OpenAI
 
+from log_utils import setup_logger
+
+log = setup_logger("gen_prompt")
+
 PROJECT_DIR = Path(__file__).resolve().parent
 PROMPT_OUTPUT = PROJECT_DIR / "gen_prompt_output.txt"
 
@@ -63,7 +67,7 @@ def _call_api(client, model, system_prompt, user_prompt):
             last_error = e
             if attempt < MAX_RETRIES - 1:
                 delay = RETRY_DELAY_BASE * (2 ** attempt)
-                print(f"      Retry {attempt + 1}/{MAX_RETRIES} in {delay}s: {e}")
+                log.warning("Retry %d/%d in %ds: %s", attempt + 1, MAX_RETRIES, delay, e)
                 time.sleep(delay)
 
     raise RuntimeError(f"Failed after {MAX_RETRIES} attempts: {last_error}")
@@ -115,34 +119,35 @@ def main():
 
     start_time = time.time()
     start_datetime = datetime.now()
-    print(f"Start time: {start_datetime.strftime('%Y-%m-%d %H:%M:%S')}")
+    log.info("Start time: %s", start_datetime.strftime("%Y-%m-%d %H:%M:%S"))
 
     client, model = _get_client()
-    print(f"Model: {model}")
-    print(f"Word: {args.word}")
-    print(f"Meaning: {args.meaning}")
-    print("Generating prompt...")
+    log.info("Model: %s", model)
+    log.info("Word: %s", args.word)
+    log.info("Meaning: %s", args.meaning)
+    log.info("Generating prompt...")
 
     prompt_text, tokens_used = generate_prompt(args.word, args.meaning, client, model)
 
-    print("-" * 50)
-    print(prompt_text)
-    print("-" * 50)
-    print(f"Tokens used: {tokens_used}")
+    separator = "-" * 50
+    log.info(separator)
+    log.info(prompt_text)
+    log.info(separator)
+    log.info("Tokens used: %s", tokens_used)
 
     output_path = Path(args.output) if args.output else PROMPT_OUTPUT
     with open(output_path, "w") as f:
         f.write(args.word + "\n")
         f.write(prompt_text + "\n")
-    print(f"Prompt written to: {output_path}")
+    log.info("Prompt written to: %s", output_path)
 
     end_time = time.time()
     end_datetime = datetime.now()
     duration_seconds = end_time - start_time
     duration_minutes = duration_seconds / 60.0
 
-    print(f"End time: {end_datetime.strftime('%Y-%m-%d %H:%M:%S')}")
-    print(f"Duration: {duration_minutes:.2f} minutes ({duration_seconds:.1f} seconds)")
+    log.info("End time: %s", end_datetime.strftime("%Y-%m-%d %H:%M:%S"))
+    log.info("Duration: %.2f minutes (%.1f seconds)", duration_minutes, duration_seconds)
 
 
 if __name__ == "__main__":
