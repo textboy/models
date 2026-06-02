@@ -14,6 +14,18 @@ Because abstract word maybe not easy to describe in a single scene, you can use 
 in one image in case it needs.
 """
 
+SYSTEM_PROMPT_DUAL = """You are a text-to-image prompt generator. Given a word and its meaning, generate TWO prompts:
+
+1. WITH WORD — a scene where the word itself appears as visible, styled text/typography integrated into the image (e.g., on a sign, as lettering, as part of the composition)
+2. NO WORD — a purely visual scene that conveys the meaning without ANY text, letters, or words appearing
+
+Output exactly in this format:
+---WITH-WORD---
+<scene description with the word visible>
+---NO-WORD---
+<scene description without any text>
+"""
+
 MAX_RETRIES = 5
 RETRY_DELAY_BASE = 2  # seconds
 
@@ -24,24 +36,15 @@ def _get_client():
     return OpenAI(base_url=base_url, api_key=api_key), os.environ["NVIDIA_MODEL"]
 
 
-def generate_prompt(word, meaning, client=None, model=None):
-    """Generate a text-to-image prompt for the given word and meaning.
-
-    Returns (prompt_text, tokens_used). Retries with exponential backoff
-    on transient API errors.
-    """
-    if client is None or model is None:
-        client, model = _get_client()
-
-    user_prompt = f"The word is '{word}', meaning is '{meaning}'."
-
+def _call_api(client, model, system_prompt, user_prompt):
+    """Call the LLM API with retry logic. Returns (content, tokens_used)."""
     last_error = None
     for attempt in range(MAX_RETRIES):
         try:
             response = client.chat.completions.create(
                 model=model,
                 messages=[
-                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt},
                 ],
                 temperature=0.7,
@@ -64,6 +67,43 @@ def generate_prompt(word, meaning, client=None, model=None):
                 time.sleep(delay)
 
     raise RuntimeError(f"Failed after {MAX_RETRIES} attempts: {last_error}")
+
+
+def generate_prompt(word, meaning, client=None, model=None):
+    """Generate a single text-to-image prompt (backward-compatible).
+
+    Returns (prompt_text, tokens_used).
+    """
+    if client is None or model is None:
+        client, model = _get_client()
+    user_prompt = f"The word is '{word}', meaning is '{meaning}'."
+    return _call_api(client, model, SYSTEM_PROMPT, user_prompt)
+
+
+def generate_prompts(word, meaning, client=None, model=None):
+    """Generate two prompts for the word: one with the word visible, one without.
+
+    Returns (prompt_with_word, prompt_no_word, tokens_used).
+    """
+    if client is None or model is None:
+        client, model = _get_client()
+    user_prompt = f"The word is '{word}', meaning is '{meaning}'."
+    output_text, tokens = _call_api(client, model, SYSTEM_PROMPT_DUAL, user_prompt)
+
+    # Parse the two prompts from the response
+    try:
+        parts = output_text.split("---NO-WORD---")
+        with_word = parts[0].replace("---WITH-WORD---", "").strip()
+        no_word = parts[1].strip() if len(parts) > 1 else ""
+    except (IndexError, AttributeError):
+        # Fallback: treat entire output as no-word prompt
+        with_word = output_text
+        no_word = output_text
+
+    if not no_word:
+        no_word = with_word
+
+    return with_word, no_word, tokens
 
 
 def main():

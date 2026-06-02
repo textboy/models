@@ -66,32 +66,50 @@ def process_batch(start, end, device="mps"):
             for definition in word_entry["definitions"]:
                 definition_id = definition["definitionId"]
                 meanings = definition["meanings"]
-                output_filename = f"{word_id}-{definition_id}.png"
-                output_path = IMG_DIR / output_filename
+                output_word = f"{word_id}-{definition_id}-word.png"
+                output_no_word = f"{word_id}-{definition_id}-no-word.png"
+                path_word = IMG_DIR / output_word
+                path_no_word = IMG_DIR / output_no_word
 
                 total_words += 1
 
-                # Skip if already generated
-                if output_path.exists():
-                    print(f"  SKIP {output_filename} (already exists)")
+                # Skip if both already generated
+                if path_word.exists() and path_no_word.exists():
+                    print(f"  SKIP {output_word} / {output_no_word} (already exist)")
                     total_skipped += 1
                     continue
 
                 print(f"  [{word_text}] {meanings[:80]}...")
 
                 try:
-                    # Step 1: Generate prompt via LLM (with retry built in)
-                    prompt_text, tokens = gen_prompt.generate_prompt(
+                    # Step 1: Generate two prompts in one API call
+                    prompt_with, prompt_no, tokens = gen_prompt.generate_prompts(
                         word_text, meanings, client, model
                     )
-                    print(f"    Prompt: {prompt_text[:100]}...")
+                    print(f"    [with word]    {prompt_with[:80]}...")
+                    print(f"    [no word]      {prompt_no[:80]}...")
 
-                    # Step 2: Generate image
-                    z_image.generate_image(
-                        pipe, prompt_text, str(output_path), word_text, device
-                    )
-                    print(f"    ✓ Saved: {output_filename}")
-                    total_images += 1
+                    # Step 2: Generate image with word
+                    if not path_word.exists():
+                        z_image.generate_image(
+                            pipe, prompt_with, str(path_word), word_text, device,
+                            with_word=True
+                        )
+                        print(f"    ✓ Saved: {output_word}")
+                        total_images += 1
+                    else:
+                        print(f"    SKIP {output_word} (already exists)")
+
+                    # Step 3: Generate image without word
+                    if not path_no_word.exists():
+                        z_image.generate_image(
+                            pipe, prompt_no, str(path_no_word), word_text, device,
+                            with_word=False
+                        )
+                        print(f"    ✓ Saved: {output_no_word}")
+                        total_images += 1
+                    else:
+                        print(f"    SKIP {output_no_word} (already exists)")
 
                     # Brief pause to avoid rate-limiting the API
                     time.sleep(1)

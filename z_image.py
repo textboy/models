@@ -35,7 +35,7 @@ def load_pipeline(device="mps", gguf_path=None):
     return pipe
 
 
-def generate_image(pipe, prompt_text, output_path, word="", device="mps", seed=42):
+def generate_image(pipe, prompt_text, output_path, word="", device="mps", seed=42, with_word=True):
     """Generate an image from a prompt and save to output_path.
 
     Args:
@@ -45,8 +45,14 @@ def generate_image(pipe, prompt_text, output_path, word="", device="mps", seed=4
         word: optional word for the category prefix
         device: torch device
         seed: random seed for reproducibility
+        with_word: if True, category says "with the word {word}";
+                   if False, says "without any words"
     """
-    category = f"Generate an image without words {word}.\n" if word else ""
+    if with_word:
+        category = f"Generate an image with the word {word}.\n" if word else ""
+    else:
+        category = "Generate an image without any words.\n"
+
     full_prompt = category + prompt_text
 
     image = pipe(
