@@ -1,3 +1,5 @@
 *.gguf
 /model
-/output.DS_Store
+/output
+.DS_Store
+gen_prompt_output.txt

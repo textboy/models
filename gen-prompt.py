@@ -1,7 +1,11 @@
 import os
 import time
 from datetime import datetime
+from pathlib import Path
 from openai import OpenAI
+
+PROJECT_DIR = Path(__file__).resolve().parent
+PROMPT_OUTPUT = PROJECT_DIR / "gen_prompt_output.txt"
 
 # Read config from environment
 base_url = os.environ["NVIDIA_BASE_URL"]
@@ -46,6 +50,12 @@ print("-" * 50)
 print(output_text)
 print("-" * 50)
 print(f"Tokens used: {tokens_used}")
+
+# Write word + generated prompt to shared file for z-image.py
+with open(PROMPT_OUTPUT, "w") as f:
+    f.write(word + "\n")
+    f.write(output_text.strip() + "\n")
+print(f"Prompt written to: {PROMPT_OUTPUT}")
 
 # Record end time and print timing summary
 end_time = time.time()
