@@ -2,7 +2,6 @@ import torch
 import time
 import sys
 import argparse
-import logging
 from datetime import datetime
 from pathlib import Path
 from diffusers import ZImagePipeline, ZImageTransformer2DModel, GGUFQuantizationConfig
@@ -11,6 +10,29 @@ from log_utils import setup_logger
 
 # Module-level logger — can be overridden by batch.py to redirect to batch log
 log = setup_logger("z_image")
+
+# ── step callback for progress logging ──────────────────────────────
+_step_start = None
+_num_steps = 0
+
+
+def _on_step_end(pipe, step_index, timestep, callback_kwargs):
+    global _step_start, _num_steps
+    now = time.time()
+    if step_index == 0:
+        _step_start = now
+    step = step_index + 1
+    total = _num_steps
+    pct = step * 100 // total
+    elapsed = now - _step_start
+    steps_per_min = step / (elapsed / 60) if elapsed > 0 else 0
+    eta_total = (elapsed / step) * total if step > 0 else 0
+    eta_remaining = eta_total - elapsed
+    log.info(
+        "  Step %d/%d (%d%%) | %.1f steps/min | elapsed %.0fs | ETA %.0fs",
+        step, total, pct, steps_per_min, elapsed, eta_remaining,
+    )
+    return callback_kwargs
 
 PROJECT_DIR = Path(__file__).resolve().parent
 PROMPT_INPUT = PROJECT_DIR / "gen_prompt_output.txt"
@@ -55,13 +77,16 @@ def generate_image(pipe, prompt_text, output_path, device="mps", seed=42):
     full_prompt = category + prompt_text
 
     log.info("Generating image (seed=%d, %s)...", seed, output_path)
+    global _num_steps
+    _num_steps = 9
     image = pipe(
         prompt=full_prompt,
         height=1024,
         width=1024,
-        num_inference_steps=9,
+        num_inference_steps=_num_steps,
         guidance_scale=0.0,
         generator=torch.Generator(device=device).manual_seed(seed),
+        callback_on_step_end=_on_step_end,
     ).images[0]
 
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
