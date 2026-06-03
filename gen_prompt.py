@@ -12,22 +12,10 @@ PROJECT_DIR = Path(__file__).resolve().parent
 PROMPT_OUTPUT = PROJECT_DIR / "gen_prompt_output.txt"
 DEFAULT_GGUF = str(PROJECT_DIR / "model" / "LFM2.5-8B-A1B-Q4_K_M.gguf")
 
-SYSTEM_PROMPT = """
+SYSTEM_PROMPT = """\
 Generate a text-to-image prompt that visually conveys the meaning of a word through a purely
 visual scene. The image must NOT contain any text, letters, words, or typography. Use multiple
 scenes in one image if needed to illustrate abstract concepts.
-"""
-
-SYSTEM_PROMPT_DUAL = """You are a text-to-image prompt generator. Given a word and its meaning, generate TWO prompts:
-
-1. WITH WORD — a scene where the word itself appears as visible, styled text/typography integrated into the image (e.g., on a sign, as lettering, as part of the composition)
-2. NO WORD — a purely visual scene that conveys the meaning without ANY text, letters, or words appearing
-
-Output exactly in this format:
----WITH-WORD---
-<scene description with the word visible>
----NO-WORD---
-<scene description without any text>
 """
 
 MAX_RETRIES = 3
@@ -97,35 +85,6 @@ def generate_prompt(word, meaning, llm=None):
     prompt_text, tokens = _run_llm(llm, SYSTEM_PROMPT, user_prompt)
     log.info("Prompt: %s...", prompt_text[:120])
     return prompt_text, tokens
-
-
-def generate_prompts(word, meaning, llm=None):
-    """Generate two prompts for the word: one with the word visible, one without.
-
-    Returns (prompt_with_word, prompt_no_word, tokens_used).
-    """
-    if llm is None:
-        llm = _get_llm()
-    log.info("Word: %s | Meaning: %s", word, meaning)
-    user_prompt = f"The word is '{word}', meaning is '{meaning}'."
-    output_text, tokens = _run_llm(llm, SYSTEM_PROMPT_DUAL, user_prompt)
-
-    # Parse the two prompts from the response
-    try:
-        parts = output_text.split("---NO-WORD---")
-        with_word = parts[0].replace("---WITH-WORD---", "").strip()
-        no_word = parts[1].strip() if len(parts) > 1 else ""
-    except (IndexError, AttributeError):
-        # Fallback: treat entire output as no-word prompt
-        with_word = output_text
-        no_word = output_text
-
-    if not no_word:
-        no_word = with_word
-
-    log.info("[with word] %s...", with_word[:120])
-    log.info("[no word]  %s...", no_word[:120])
-    return with_word, no_word, tokens
 
 
 def main():
