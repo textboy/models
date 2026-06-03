@@ -13,9 +13,12 @@ PROMPT_OUTPUT = PROJECT_DIR / "gen_prompt_output.txt"
 DEFAULT_GGUF = str(PROJECT_DIR / "model" / "LFM2.5-8B-A1B-Q4_K_M.gguf")
 
 SYSTEM_PROMPT = """\
-Generate a text-to-image prompt that visually conveys the meaning of a word through a purely
-visual scene. The image must NOT contain any text, letters, words, or typography. Use multiple
-scenes in one image if needed to illustrate abstract concepts.
+Output a single text-to-image prompt that visually conveys the meaning of a given word through
+a purely visual scene. The image must NOT contain any text, letters, words, or typography.
+Use multiple scenes in one image if needed to illustrate abstract concepts.
+
+IMPORTANT: Output ONLY the final prompt text. Do NOT include any reasoning, thinking,
+or explanation. Just the prompt, nothing else.
 """
 
 MAX_RETRIES = 3
@@ -50,7 +53,7 @@ def _run_llm(llm, system_prompt, user_prompt):
             response = llm.create_chat_completion(
                 messages=messages,
                 temperature=0.7,
-                max_tokens=512,
+                max_tokens=2048,
             )
 
             output_text = response["choices"][0]["message"]["content"]
@@ -61,6 +64,14 @@ def _run_llm(llm, system_prompt, user_prompt):
 
             log.info("LLM call OK — %d tokens", tokens_used)
             log.debug("Response: %s", output_text.strip()[:200])
+
+            # Strip <think>...</think> reasoning block (LFM 2.5 model)
+            if "</think>" in output_text:
+                output_text = output_text.split("</think>", 1)[1]
+            else:
+                # Strip <think> without closing tag — entire content is reasoning
+                output_text = output_text.split("<think>", 1)[-1]
+
             return output_text.strip(), tokens_used
 
         except Exception as e:
@@ -89,10 +100,17 @@ def generate_prompt(word, meaning, llm=None):
 
 def main():
     parser = argparse.ArgumentParser(description="Generate a text-to-image prompt from a word")
-    parser.add_argument("--word", required=True, help="The word to illustrate")
-    parser.add_argument("--meaning", required=True, help="The meaning/definition of the word")
+    parser.add_argument("--word", default=None, help="The word to illustrate")
+    parser.add_argument("--meaning", default=None, help="The meaning/definition of the word")
     parser.add_argument("--output", default=None, help="File to write the prompt (default: gen_prompt_output.txt)")
+    parser.add_argument("--test", action="store_true", help="Run with built-in test word (exact)")
     args = parser.parse_args()
+
+    if args.test:
+        args.word = "exact"
+        args.meaning = "precise and accurate in every detail; not approximate"
+    elif not args.word or not args.meaning:
+        parser.error("--word and --meaning are required (or use --test)")
 
     start_time = time.time()
     start_datetime = datetime.now()
