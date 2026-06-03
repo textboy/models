@@ -43,9 +43,9 @@ def process_batch(start, end, device="mps"):
     # Load model once
     pipe = z_image.load_pipeline(device)
 
-    # Create LLM client once
-    client, model = gen_prompt._get_client()
-    log.info("LLM Model: %s", model)
+    # Load local LLM once
+    llm = gen_prompt._get_llm()
+    log.info("LLM: %s", gen_prompt.DEFAULT_GGUF)
 
     total_words = 0
     total_images = 0
@@ -88,7 +88,7 @@ def process_batch(start, end, device="mps"):
                 try:
                     # Step 1: Generate prompt via LLM (with retry built in)
                     prompt_text, tokens = gen_prompt.generate_prompt(
-                        word_text, meanings, client, model
+                        word_text, meanings, llm
                     )
                     log.info("    Prompt: %s...", prompt_text[:80])
 

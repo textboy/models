@@ -1,9 +1,8 @@
-import os
 import time
 import argparse
 from datetime import datetime
 from pathlib import Path
-from openai import OpenAI
+from llama_cpp import Llama
 
 from log_utils import setup_logger
 
@@ -11,6 +10,7 @@ log = setup_logger("gen_prompt")
 
 PROJECT_DIR = Path(__file__).resolve().parent
 PROMPT_OUTPUT = PROJECT_DIR / "gen_prompt_output.txt"
+DEFAULT_GGUF = str(PROJECT_DIR / "model" / "LFM2.5-8B-A1B-Q4_K_M.gguf")
 
 SYSTEM_PROMPT = """
 Generate a text-to-image prompt that visually conveys the meaning of a word through a purely
@@ -30,38 +30,48 @@ Output exactly in this format:
 <scene description without any text>
 """
 
-MAX_RETRIES = 5
+MAX_RETRIES = 3
 RETRY_DELAY_BASE = 2  # seconds
 
 
-def _get_client():
-    base_url = os.environ["NVIDIA_BASE_URL"]
-    api_key = os.environ["NVIDIA_API_KEY"]
-    return OpenAI(base_url=base_url, api_key=api_key), os.environ["NVIDIA_MODEL"]
+def _get_llm(gguf_path=None):
+    """Load the local GGUF model. Call once and reuse."""
+    if gguf_path is None:
+        gguf_path = DEFAULT_GGUF
+    log.info("Loading LLM: %s", gguf_path)
+    llm = Llama(
+        model_path=gguf_path,
+        n_ctx=4096,
+        n_threads=4,
+        verbose=False,
+    )
+    log.info("LLM loaded.")
+    return llm
 
 
-def _call_api(client, model, system_prompt, user_prompt):
-    """Call the LLM API with retry logic. Returns (content, tokens_used)."""
+def _run_llm(llm, system_prompt, user_prompt):
+    """Run local LLM inference with retry logic. Returns (content, tokens_used)."""
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_prompt},
+    ]
+
     last_error = None
     for attempt in range(MAX_RETRIES):
         try:
-            response = client.chat.completions.create(
-                model=model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
+            response = llm.create_chat_completion(
+                messages=messages,
                 temperature=0.7,
                 max_tokens=512,
             )
 
-            output_text = response.choices[0].message.content
-            tokens_used = response.usage.total_tokens
+            output_text = response["choices"][0]["message"]["content"]
+            tokens_used = response["usage"]["total_tokens"]
 
             if output_text is None:
-                raise RuntimeError("API returned empty content")
+                raise RuntimeError("LLM returned empty content")
 
-            log.info("API call OK — %d tokens", tokens_used)
+            log.info("LLM call OK — %d tokens", tokens_used)
             log.debug("Response: %s", output_text.strip()[:200])
             return output_text.strip(), tokens_used
 
@@ -75,30 +85,30 @@ def _call_api(client, model, system_prompt, user_prompt):
     raise RuntimeError(f"Failed after {MAX_RETRIES} attempts: {last_error}")
 
 
-def generate_prompt(word, meaning, client=None, model=None):
-    """Generate a single text-to-image prompt (backward-compatible).
+def generate_prompt(word, meaning, llm=None):
+    """Generate a single text-to-image prompt.
 
     Returns (prompt_text, tokens_used).
     """
-    if client is None or model is None:
-        client, model = _get_client()
+    if llm is None:
+        llm = _get_llm()
     log.info("Word: %s | Meaning: %s", word, meaning)
     user_prompt = f"The word is '{word}', meaning is '{meaning}'."
-    prompt_text, tokens = _call_api(client, model, SYSTEM_PROMPT, user_prompt)
+    prompt_text, tokens = _run_llm(llm, SYSTEM_PROMPT, user_prompt)
     log.info("Prompt: %s...", prompt_text[:120])
     return prompt_text, tokens
 
 
-def generate_prompts(word, meaning, client=None, model=None):
+def generate_prompts(word, meaning, llm=None):
     """Generate two prompts for the word: one with the word visible, one without.
 
     Returns (prompt_with_word, prompt_no_word, tokens_used).
     """
-    if client is None or model is None:
-        client, model = _get_client()
+    if llm is None:
+        llm = _get_llm()
     log.info("Word: %s | Meaning: %s", word, meaning)
     user_prompt = f"The word is '{word}', meaning is '{meaning}'."
-    output_text, tokens = _call_api(client, model, SYSTEM_PROMPT_DUAL, user_prompt)
+    output_text, tokens = _run_llm(llm, SYSTEM_PROMPT_DUAL, user_prompt)
 
     # Parse the two prompts from the response
     try:
@@ -129,13 +139,12 @@ def main():
     start_datetime = datetime.now()
     log.info("Start time: %s", start_datetime.strftime("%Y-%m-%d %H:%M:%S"))
 
-    client, model = _get_client()
-    log.info("Model: %s", model)
+    llm = _get_llm()
     log.info("Word: %s", args.word)
     log.info("Meaning: %s", args.meaning)
     log.info("Generating prompt...")
 
-    prompt_text, tokens_used = generate_prompt(args.word, args.meaning, client, model)
+    prompt_text, tokens_used = generate_prompt(args.word, args.meaning, llm)
 
     separator = "-" * 50
     log.info(separator)

@@ -92,7 +92,6 @@ run_zimage() {
 # --- run gen-prompt sample -----------------------------------
 run_gen_prompt() {
   bold "═══ Running Prompt Generation sample ═══"
-  check_nvidia_env
   cd "$PROJECT_DIR"
   python "$PROJECT_DIR/gen_prompt.py" --word "appreciate" --meaning "thankful"
 }
@@ -102,7 +101,6 @@ run_batch() {
   local start="${1:-0001}"
   local end="${2:-$start}"
   bold "═══ Batch processing: $start.json → $end.json ═══"
-  check_nvidia_env
   cd "$PROJECT_DIR"
   python "$PROJECT_DIR/batch.py" "$start" "$end"
 }
